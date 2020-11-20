@@ -1,0 +1,21 @@
+from django.contrib import admin
+from RautsApp_app.models import *
+# Register your models here.
+admin.site.register(User)
+admin.site.register(Vehicle)
+admin.site.register(VehicleDocument)
+admin.site.register(User_Detail)
+admin.site.register(Distributor)
+admin.site.register(DistributorInsurance)
+admin.site.register(User_Leave)
+admin.site.register(User_Expense)
+admin.site.register(Expense_Media)
+admin.site.register(Banker_Detail)
+admin.site.register(Delivery_Boy_Data)
+admin.site.register(Delivery_Boy_Vehicle_Data)
+admin.site.register(Cylinder_Master)
+admin.site.register(Insurance_Master)
+admin.site.register(Business_Master_Type)
+admin.site.register(Gas_Distributor_Material)
+admin.site.register(Sales_Gas_Data)
+admin.site.register(New_or_Emergency_Connection)
