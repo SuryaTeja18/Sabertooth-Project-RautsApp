@@ -19,6 +19,8 @@ from RautsApp_app import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/users/', views.users),
-    path('api/users/<int:id>', views.users),
+    path('users/', views.users),
+    path('users/<int:id>', views.users),
+    path('vehicles', views.vehicles),
+    path('vehicles/<int:id>', views.vehicles),
 ]

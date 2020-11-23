@@ -17,6 +17,8 @@ import json
 from django.core.exceptions import *
 from rest_framework.response import Response
 from .models import *
+from django.contrib.auth.decorators import login_required
+from rest_framework.authtoken.models import Token
 # Create your views here.
 
 class UserSerializer(serializers.ModelSerializer):
@@ -27,7 +29,8 @@ class UserSerializer(serializers.ModelSerializer):
 class VehicleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Vehicle
-        fields = ('vehicle_name','number_plate','rc_number','vehicle_insurance','manufacture_date','puc')
+        created_by = serializers.IntegerField(write_only=True)
+        fields = ('vehicle_name','number_plate','rc_number','vehicle_insurance','manufacture_date','puc','created_by')
 
 
 @api_view(['GET', 'POST', 'PUT', 'DELETE'])
@@ -73,6 +76,8 @@ def users(request,*args,**kwargs):
 
 @api_view(['GET', 'POST', 'PUT', 'DELETE'])
 def vehicles(request,*args,**kwargs):
+    print(request.user)
+    print(request.auth)
     if request.method == 'GET':
         if (kwargs):
             try:
@@ -82,13 +87,11 @@ def vehicles(request,*args,**kwargs):
             except:
                 return Response({'Data':'No Vehicle found with given id'},status=status.HTTP_204_NO_CONTENT)
         else:
-            auth = request.auth
-            print(auth)
             res = VehicleSerializer(User.objects.all(),many=True)
             return Response(res.data)
     if request.method == "POST":
-        auth = request.auth
-        print(auth)
+        request.data["created_by"]=request.user
+        print(request.data)
         serializer = VehicleSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -107,7 +110,6 @@ def vehicles(request,*args,**kwargs):
         except:
             return Response(exceptions.errors, status=status.HTTP_400_BAD_REQUEST)
     if request.method == 'DELETE':
-        auth = request.auth
         vehicle = Vehicle.objects.get(**kwargs)
         vehicle.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
