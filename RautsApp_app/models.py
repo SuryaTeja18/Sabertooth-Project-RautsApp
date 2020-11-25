@@ -6,7 +6,7 @@ from safedelete.models import HARD_DELETE_NOCASCADE
 
 class User(models.Model):
     _safedelete_policy = HARD_DELETE_NOCASCADE
-    name = models.CharField(max_length=128)
+    username = models.CharField(max_length=128)
     email = models.EmailField(max_length= 128)
     phone = models.CharField(max_length=128)
     password = models.CharField(max_length=128)

@@ -16,11 +16,28 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from RautsApp_app import views
+from rest_framework.authtoken.views import obtain_auth_token
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+
+    path('login/',obtain_auth_token),
+
     path('users/', views.users),
     path('users/<int:id>', views.users),
+
     path('vehicles', views.vehicles),
     path('vehicles/<int:id>', views.vehicles),
+
+    path('vehicledoc/', views.vehicleDocument),
+    path('vehicledoc/<int:id>', views.vehicleDocument),
+
+    path('userdetails/', views.userDetails),
+    path('userdetails/<int:id>', views.userDetails),
+
+    path('distributor/', views.distributor),
+    path('distributor/<int:id>', views.distributor),
+
+    path('distributor-insurance/', views.distributorInsurance),
+    path('distributor-insurance/<int:id>', views.distributorInsurance),
 ]

@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.http import HttpResponse
 from rest_framework.parsers import JSONParser
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import render,redirect
 from django.views import View
@@ -10,6 +11,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import status, serializers
 from rest_framework import viewsets, status
+from rest_framework.permissions import AllowAny
 from rest_framework.decorators import api_view,permission_classes
 from rest_framework.permissions import IsAuthenticated
 from django.http import JsonResponse
@@ -19,12 +21,13 @@ from rest_framework.response import Response
 from .models import *
 from django.contrib.auth.decorators import login_required
 from rest_framework.authtoken.models import Token
+from django.contrib.auth.models import User as DjangoUser
 # Create your views here.
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('name','email','phone','password','role_id')
+        fields = ('username','email','phone','password','role_id')
 
 class VehicleSerializer(serializers.ModelSerializer):
     class Meta:
@@ -32,6 +35,29 @@ class VehicleSerializer(serializers.ModelSerializer):
         created_by = serializers.IntegerField(write_only=True)
         fields = ('vehicle_name','number_plate','rc_number','vehicle_insurance','manufacture_date','puc','created_by')
 
+class VehicleDocumentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VehicleDocument
+        vehicle_id = serializers.IntegerField(write_only=True)
+        fields = ('vehicle_id','document','path')
+
+class User_DetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User_Detail
+        user_id = serializers.IntegerField(write_only=True)
+        fields = ('user_id','adhaar_card_number','license','name')
+
+class DistributorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Distributor
+        user_id = serializers.IntegerField(write_only=True)
+        fields = ('user_id','organization_name','address')
+
+class DistributorInsuranceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DistributorInsurance
+        distributor_id = serializers.IntegerField(write_only=True)
+        fields = ('distributor_id','insurance_master_id','expiry_date')
 
 @api_view(['GET', 'POST', 'PUT', 'DELETE'])
 def users(request,*args,**kwargs):
@@ -44,20 +70,15 @@ def users(request,*args,**kwargs):
             except:
                 return Response({'Data':'No user found with given id'},status=status.HTTP_204_NO_CONTENT)
         else:
-            auth = request.auth
-            print(auth)
             res = UserSerializer(User.objects.all(),many=True)
             return Response(res.data)
     if request.method == "POST":
-        auth = request.auth
-        print(auth)
         serializer = UserSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     if request.method == "PUT":
-        auth = request.auth
         exceptions = 0
         try:
             user = User.objects.get(**kwargs)
@@ -69,29 +90,26 @@ def users(request,*args,**kwargs):
         except:
             return Response(exceptions.errors, status=status.HTTP_400_BAD_REQUEST)
     if request.method == 'DELETE':
-        auth = request.auth
         user = User.objects.get(**kwargs)
         user.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 @api_view(['GET', 'POST', 'PUT', 'DELETE'])
 def vehicles(request,*args,**kwargs):
-    print(request.user)
-    print(request.auth)
     if request.method == 'GET':
         if (kwargs):
             try:
                 vid = Vehicle.objects.get(**kwargs).id
-                res = VehicleSerializer(User.objects.filter(id=vid), many=True)
+                res = VehicleSerializer(Vehicle.objects.filter(id=vid), many=True)
                 return Response(res.data)
             except:
                 return Response({'Data':'No Vehicle found with given id'},status=status.HTTP_204_NO_CONTENT)
         else:
-            res = VehicleSerializer(User.objects.all(),many=True)
+            res = VehicleSerializer(Vehicle.objects.all(),many=True)
             return Response(res.data)
     if request.method == "POST":
-        request.data["created_by"]=request.user
-        print(request.data)
+        ins = DjangoUser.objects.filter(id=request.user.pk).first()
+        request.data["created_by"]="1"
         serializer = VehicleSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -112,4 +130,148 @@ def vehicles(request,*args,**kwargs):
     if request.method == 'DELETE':
         vehicle = Vehicle.objects.get(**kwargs)
         vehicle.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+@api_view(['GET', 'POST', 'PUT', 'DELETE'])
+def vehicleDocument(request,*args,**kwargs):
+    print(request.auth, request.user)
+    if request.method == 'GET':
+        if (kwargs):
+            try:
+                vdid = VehicleDocument.objects.get(**kwargs).id
+                res = VehicleDocumentSerializer(User.objects.filter(id=vdid), many=True)
+                return Response(res.data)
+            except:
+                return Response({'Data':'No vehicle documents found'},status=status.HTTP_204_NO_CONTENT)
+        else:
+            res = UserSerializer(User.objects.all(),many=True)
+            return Response(res.data)
+    if request.method == "POST":
+        serializer = VehicleDocumentSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    if request.method == "PUT":
+        exceptions = 0
+        try:
+            vehicleDoc = VehicleDocument.objects.get(**kwargs)
+            serializer = VehicleDocumentSerializer(vehicleDoc,data=request.data)
+            exceptions = serializer
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+        except:
+            return Response(exceptions.errors, status=status.HTTP_400_BAD_REQUEST)
+    if request.method == 'DELETE':
+        vehicleDoc = VehicleDocument.objects.get(**kwargs)
+        vehicleDoc.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+@api_view(['GET', 'POST', 'PUT', 'DELETE'])
+def userDetails(request,*args,**kwargs):
+    print(request.auth, request.user)
+    if request.method == 'GET':
+        if (kwargs):
+            try:
+                udid = User_Detail.objects.get(**kwargs).id
+                res = User_DetailSerializer(User_Detail.objects.filter(id=udid), many=True)
+                return Response(res.data)
+            except:
+                return Response({'Data':'No User details found'},status=status.HTTP_204_NO_CONTENT)
+        else:
+            res = User_DetailSerializer(User_Detail.objects.all(),many=True)
+            return Response(res.data)
+    if request.method == "POST":
+        serializer = User_DetailSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    if request.method == "PUT":
+        exceptions = 0
+        try:
+            ud = User_Detail.objects.get(**kwargs)
+            serializer = User_DetailSerializer(ud,data=request.data)
+            exceptions = serializer
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+        except:
+            return Response(exceptions.errors, status=status.HTTP_400_BAD_REQUEST)
+    if request.method == 'DELETE':
+        ud = User_Detail.objects.get(**kwargs)
+        ud.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+@api_view(['GET', 'POST', 'PUT', 'DELETE'])
+def distributor(request,*args,**kwargs):
+    print(request.auth, request.user)
+    if request.method == 'GET':
+        if (kwargs):
+            try:
+                dis = Distributor.objects.get(**kwargs).id
+                res = DistributorSerializer(Distributor.objects.filter(id=dis), many=True)
+                return Response(res.data)
+            except:
+                return Response({'Data':'No Distributors present'},status=status.HTTP_204_NO_CONTENT)
+        else:
+            res = DistributorSerializer(Distributor.objects.all(),many=True)
+            return Response(res.data)
+    if request.method == "POST":
+        serializer = DistributorSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    if request.method == "PUT":
+        exceptions = 0
+        try:
+            dis = Distributor.objects.get(**kwargs)
+            serializer = DistributorSerializer(dis,data=request.data)
+            exceptions = serializer
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+        except:
+            return Response(exceptions.errors, status=status.HTTP_400_BAD_REQUEST)
+    if request.method == 'DELETE':
+        dis = Distributor.objects.get(**kwargs)
+        dis.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+@api_view(['GET', 'POST', 'PUT', 'DELETE'])
+def distributorInsurance(request,*args,**kwargs):
+    print(request.auth, request.user)
+    if request.method == 'GET':
+        if (kwargs):
+            try:
+                di = DistributorInsurance.objects.get(**kwargs).id
+                res = DistributorInsuranceSerializer(DistributorInsurance.objects.filter(id=di), many=True)
+                return Response(res.data)
+            except:
+                return Response({'Data':'No Distributor Insurances found'},status=status.HTTP_204_NO_CONTENT)
+        else:
+            res = DistributorInsuranceSerializer(DistributorInsurance.objects.all(),many=True)
+            return Response(res.data)
+    if request.method == "POST":
+        serializer = DistributorInsuranceSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    if request.method == "PUT":
+        exceptions = 0
+        try:
+            di = DistributorInsurance.objects.get(**kwargs)
+            serializer = DistributorInsuranceSerializer(di,data=request.data)
+            exceptions = serializer
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+        except:
+            return Response(exceptions.errors, status=status.HTTP_400_BAD_REQUEST)
+    if request.method == 'DELETE':
+        di = DistributorInsurance.objects.get(**kwargs)
+        di.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
