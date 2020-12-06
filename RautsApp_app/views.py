@@ -16,6 +16,7 @@ from rest_framework.decorators import api_view,permission_classes
 from rest_framework.permissions import IsAuthenticated
 from django.http import JsonResponse
 import json
+from django.utils.html import escape
 from django.core.exceptions import *
 from rest_framework.response import Response
 from .models import *
@@ -26,8 +27,9 @@ from django.contrib.auth.models import User as DjangoUser
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
-        model = User
-        fields = ('username','email','phone','password','role_id')
+        model = CustomUser
+        user = serializers.IntegerField(write_only=True)
+        fields = ('phone','role_id','user')
 
 class VehicleSerializer(serializers.ModelSerializer):
     class Meta:
@@ -64,24 +66,37 @@ def users(request,*args,**kwargs):
     if request.method == 'GET':
         if (kwargs):
             try:
-                uid = User.objects.get(**kwargs).id
-                res = UserSerializer(User.objects.filter(id=uid), many=True)
-                return Response(res.data)
+                cu = CustomUser.objects.get(**kwargs)
+                res = UserSerializer(CustomUser.objects.filter(id=cu.id), many=True)
+                result = [DjangoUser.objects.filter(id=cu.user.id).values('username','email').first()]
+                return Response({**result[0],**res.data[0]})
             except:
                 return Response({'Data':'No user found with given id'},status=status.HTTP_204_NO_CONTENT)
         else:
-            res = UserSerializer(User.objects.all(),many=True)
-            return Response(res.data)
+            res = UserSerializer(CustomUser.objects.all(),many=True)
+            objects = CustomUser.objects.prefetch_related('user').all()
+            result = []
+            print(len(res.data))
+            for i in range(len(res.data)):
+                r = {**DjangoUser.objects.filter(id = objects[i].user.id).values('username','email').first(),**res.data[i]}
+                result.append(r)
+            return Response(result)
     if request.method == "POST":
+        d = {'username' : request.data['username'],'password': request.data['password'], 'email':request.data['email'],'role_id':request.data['role_id']}
+        user = DjangoUser.objects.create_user(username = d['username'], email=d['email'], password=d['password'])
+        request.data.pop('username')
+        request.data.pop('password')
+        request.data.pop('email')
+        request.data['user'] = user.id
         serializer = UserSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(d, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     if request.method == "PUT":
         exceptions = 0
         try:
-            user = User.objects.get(**kwargs)
+            user = CustomUser.objects.get(**kwargs)
             serializer = UserSerializer(user,data=request.data)
             exceptions = serializer
             if serializer.is_valid():
@@ -90,7 +105,7 @@ def users(request,*args,**kwargs):
         except:
             return Response(exceptions.errors, status=status.HTTP_400_BAD_REQUEST)
     if request.method == 'DELETE':
-        user = User.objects.get(**kwargs)
+        user = CustomUser.objects.get(**kwargs)
         user.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -108,8 +123,9 @@ def vehicles(request,*args,**kwargs):
             res = VehicleSerializer(Vehicle.objects.all(),many=True)
             return Response(res.data)
     if request.method == "POST":
-        ins = DjangoUser.objects.filter(id=request.user.pk).first()
-        request.data["created_by"]="1"
+        ins = DjangoUser.objects.filter(id=request.user.id)
+        print(ins[0].id)
+        request.data["created_by"]=ins[0].id
         serializer = VehicleSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -139,12 +155,12 @@ def vehicleDocument(request,*args,**kwargs):
         if (kwargs):
             try:
                 vdid = VehicleDocument.objects.get(**kwargs).id
-                res = VehicleDocumentSerializer(User.objects.filter(id=vdid), many=True)
+                res = VehicleDocumentSerializer(VehicleDocument.objects.filter(id=vdid), many=True)
                 return Response(res.data)
             except:
                 return Response({'Data':'No vehicle documents found'},status=status.HTTP_204_NO_CONTENT)
         else:
-            res = UserSerializer(User.objects.all(),many=True)
+            res = VehicleDocumentSerializer(VehicleDocument.objects.all(),many=True)
             return Response(res.data)
     if request.method == "POST":
         serializer = VehicleDocumentSerializer(data=request.data)

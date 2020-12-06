@@ -1,19 +1,18 @@
 from django.db import models
 from safedelete.models import SafeDeleteModel
 from safedelete.models import HARD_DELETE_NOCASCADE
+from django.contrib.auth.models import User as DjangoUser
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 # Create your models here.
 
-class User(models.Model):
+class CustomUser(models.Model):
     _safedelete_policy = HARD_DELETE_NOCASCADE
-    username = models.CharField(max_length=128)
-    email = models.EmailField(max_length= 128)
+    user = models.OneToOneField(DjangoUser, on_delete=models.CASCADE)
     phone = models.CharField(max_length=128)
-    password = models.CharField(max_length=128)
     role_id = models.IntegerField()
-    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True, blank= True)
-    #deleted_at = models.DateTimeField()
 
 class Vehicle(models.Model):
     _safedelete_policy = HARD_DELETE_NOCASCADE
@@ -26,7 +25,7 @@ class Vehicle(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True, blank=True)
     #deleted_at = models.DateTimeField()
-    created_by = models.ForeignKey(User, on_delete= models.CASCADE)
+    created_by = models.ForeignKey(CustomUser, on_delete= models.CASCADE)
 
 class VehicleDocument(models.Model):
     vehicle_id = models.ForeignKey(Vehicle, on_delete=models.CASCADE)
@@ -35,7 +34,7 @@ class VehicleDocument(models.Model):
 
 class User_Detail(models.Model):
     _safedelete_policy = HARD_DELETE_NOCASCADE
-    user_id = models.ForeignKey(User, on_delete=models.CASCADE)
+    user_id = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     adhaar_card_number = models.CharField(max_length=16)
     license = models.CharField(max_length=20)
     name = models.CharField(max_length=128)
@@ -47,7 +46,7 @@ class User_Detail(models.Model):
 class Distributor(models.Model):
     _safedelete_policy = HARD_DELETE_NOCASCADE
     organization_name = models.CharField(max_length=128)
-    user_id = models.ForeignKey(User, on_delete=models.CASCADE)
+    user_id = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     address = models.CharField(max_length=128)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True, blank=True)
@@ -61,12 +60,11 @@ class DistributorInsurance(models.Model):
     expiry_date = models.DateField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True, blank=True)
-    #deleted_at = models.DateTimeField()
-    #created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    #created_by = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
 
 class User_Leave(models.Model):
     _safedelete_policy = HARD_DELETE_NOCASCADE
-    user_id = models.ForeignKey(User, on_delete=models.CASCADE)
+    user_id = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     leave_date = models.DateField()
     number_of_days = models.IntegerField()
     reason_type = models.CharField(max_length=128)
@@ -78,7 +76,7 @@ class User_Leave(models.Model):
     #created_by = models.ForeignKey(User, on_delete=models.CASCADE)
 
 class User_Expense(models.Model):
-    user_id = models.ForeignKey(User, on_delete=models.CASCADE)
+    user_id = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     reason = models.CharField(max_length=128)
 
 class Expense_Media(models.Model):
@@ -86,12 +84,12 @@ class Expense_Media(models.Model):
     photo = models.ImageField()
 
 class Banker_Detail(models.Model):
-    user_id = models.ForeignKey(User, on_delete=models.CASCADE)
+    user_id = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     photo = models.ImageField()
 
 class Delivery_Boy_Data(models.Model):
     _safedelete_policy = HARD_DELETE_NOCASCADE
-    user_id = models.ForeignKey(User, on_delete=models.CASCADE)
+    user_id = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     is_vehicle_insured = models.BooleanField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True, blank=True)
@@ -100,7 +98,7 @@ class Delivery_Boy_Data(models.Model):
 
 class Delivery_Boy_Vehicle_Data(models.Model):
     _safedelete_policy = HARD_DELETE_NOCASCADE
-    user_id = models.ForeignKey(User, on_delete=models.CASCADE)
+    user_id = models.ForeignKey(DjangoUser, on_delete=models.CASCADE)
     vehicle_id = models.ForeignKey(Vehicle, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True, blank=True)
@@ -138,7 +136,7 @@ class Gas_Distributor_Material(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True, blank=True)
     #deleted_at = models.DateTimeField()
-    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_by = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
 
 #customer_id
 class Sales_Gas_Data(models.Model):
@@ -149,7 +147,7 @@ class Sales_Gas_Data(models.Model):
     amount = models.IntegerField()
     is_empty = models.BooleanField()
     is_delivered = models.BooleanField()
-    customer_id = models.ForeignKey(User, on_delete=models.CASCADE)
+    customer_id = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     delivery_date = models.DateField()
     delivery_time = models.TimeField()
     business_type = models.CharField(max_length=128) #choice to be added
@@ -160,11 +158,10 @@ class Sales_Gas_Data(models.Model):
 
 class New_or_Emergency_Connection(models.Model):
     _safedelete_policy = HARD_DELETE_NOCASCADE
-    user_id = models.ForeignKey(User, on_delete=models.CASCADE)
+    user_id = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     gas_amount=models.IntegerField()
     gas_tank_amount = models.IntegerField()
     is_rental = models.BooleanField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True, blank=True)
     #deleted_at = models.DateTimeField()
-    #created_by = models.ForeignKey(User, on_delete=models.CASCADE)

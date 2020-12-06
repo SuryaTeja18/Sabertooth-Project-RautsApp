@@ -1,7 +1,7 @@
 from django.contrib import admin
 from RautsApp_app.models import *
 # Register your models here.
-admin.site.register(User)
+admin.site.register(CustomUser)
 admin.site.register(Vehicle)
 admin.site.register(VehicleDocument)
 admin.site.register(User_Detail)
